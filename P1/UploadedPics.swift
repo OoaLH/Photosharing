@@ -37,13 +37,14 @@ class UploadedPics: UICollectionViewCell {
                 }
                 if let data = data {
                     // Data for "images/island.jpg" is returned
-                    self!.pic = UIImageView.init(frame:CGRect.init(x: 0, y: 0, width: self!.bounds.size.width, height: self!.bounds.size.height))
-                    picSet[staticCount] = UIImage(data: data,scale:10)!
-                    let size = min(picSet[staticCount].cgImage!.width,picSet[staticCount].cgImage!.height)
-                    let cropZone = CGRect(x: 0, y: 0, width: size, height: size)
-                    self!.pic!.image = UIImage(cgImage: (picSet[staticCount].cgImage?.cropping(to:cropZone))!,scale: 4,orientation: UIImage.Orientation.up)
-                    picSet[staticCount] = (self!.pic!.image ?? nil)!
-                    self!.addSubview(self!.pic!)
+                    self?.pic = UIImageView.init(frame:CGRect.init(x: 0, y: 0, width: self!.bounds.size.width, height: self!.bounds.size.height))
+                    picSet[staticCount] = UIImage(data: data)!.crop()
+                    //let size = min(picSet[staticCount].cgImage!.width,picSet[staticCount].cgImage!.height)
+                    //let cropZone = CGRect(x: 0, y: 0, width: size, height: size)
+                    //self!.pic!.image = UIImage(cgImage: (picSet[staticCount].cgImage?.cropping(to:cropZone))!,scale: 4,orientation: UIImage.Orientation.up)
+                    //picSet[staticCount] = (self!.pic!.image ?? nil)!
+                    self?.pic!.image = picSet[staticCount]
+                    self?.addSubview(self!.pic!)
                 }
                     
                 }

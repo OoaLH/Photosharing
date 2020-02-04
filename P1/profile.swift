@@ -11,6 +11,31 @@ import Firebase
 import FirebaseFirestoreSwift
 import Photos
 
+extension UIImage{
+    func crop() -> UIImage {
+        var newSize:CGSize!
+        //let minSize = min(size.width,size.height)
+        if size.width/size.height > 1 {
+            newSize = CGSize(width: size.height, height: size.height)
+        }else{
+            newSize = CGSize(width: size.width, height: size.width)
+        }
+        
+        var rect = CGRect.zero
+        rect.size.width  = size.width
+        rect.size.height = size.height
+        rect.origin.x    = (newSize.width - size.width ) / 2.0
+        rect.origin.y    = (newSize.height - size.height ) / 2.0
+         
+        UIGraphicsBeginImageContext(newSize)
+        draw(in: rect)
+        let scaledImage = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+         
+        return scaledImage!
+    }
+}
+
 class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataSource, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
     @IBOutlet var uploadProgress: UIProgressView!
@@ -21,7 +46,8 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
     
     
     @IBOutlet var uploadButton: UIButton!
-    
+    var screenWidth:CGFloat = 0
+    var screenHeight:CGFloat = 0
     //var pickedImage: UIImage? = nil
     override func viewDidLoad(){
         super.viewDidLoad()
@@ -31,21 +57,22 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         let storageRef = storage.reference()
         db.settings = FirestoreSettings()
         // [END setup]
-        
+        screenWidth = self.view.frame.width
+        screenHeight = self.view.frame.height
         
         let iconRef = storageRef.child(uid! + "/displayPic.jpg")
         
         // Download in memory with a maximum allowed size of 1MB (1 * 1024 * 1024 bytes)
         if iconPic == nil{
-        iconRef.getData(maxSize: 1 * 1024 * 1024) { data, error in
-            if error != nil {
-                // Uh-oh, an error occurred!
-                return
-            } else {
-                // Data for "images/island.jpg" is returned
-                iconPic = UIImage(data: data!)
-                self.icon.image = iconPic
-            }
+            iconRef.getData(maxSize: 1 * 1024 * 1024) { data, error in
+                if error != nil {
+                    // Uh-oh, an error occurred!
+                    return
+                } else {
+                    // Data for "images/island.jpg" is returned
+                    iconPic = UIImage(data: data!)
+                    self.icon.image = iconPic
+                }
             }}
         else{
             self.icon.image = iconPic
@@ -60,7 +87,7 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         }
         
         if initial{
-        loading()
+            loading()
         }
         else{
             self.view.viewWithTag(1)?.removeFromSuperview()
@@ -68,30 +95,30 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         }
     }
     func loading(){
-
+        
         db.collection("photos")
-                  .whereField("uid", isEqualTo: uid!)
-                  .whereField("storageRef", isLessThan: uid! + "/displayPic.jpg")
-                  .order(by: "storageRef", descending: true)
-                  .getDocuments { (querySnapshot, err) in
-                      if let err = err {
-                          print("Error getting documents: \(err)")
-                      } else {
-                        downloadedNumber = 0
-                        count = 0
-                        picList.removeAll()
-                        picSet.removeAll()
-                        //initial = true
-                          for document in querySnapshot!.documents {
-                              picList.append(document.data()["storageRef"] as! String)
-                              //"\(document.documentID) => \(document.data())")
-                              picSet.append(UIImage(systemName: "photo")!)
-                              //print(picList)
-                              downloadedNumber += 1
-                          }
-                          self.createPicsView()
-                      }
-              }
+            .whereField("uid", isEqualTo: uid!)
+            .whereField("storageRef", isLessThan: uid! + "/displayPic.jpg")
+            .order(by: "storageRef", descending: true)
+            .getDocuments { (querySnapshot, err) in
+                if let err = err {
+                    print("Error getting documents: \(err)")
+                } else {
+                    downloadedNumber = 0
+                    count = 0
+                    picList.removeAll()
+                    picSet.removeAll()
+                    //initial = true
+                    for document in querySnapshot!.documents {
+                        picList.append(document.data()["storageRef"] as! String)
+                        //"\(document.documentID) => \(document.data())")
+                        picSet.append(UIImage(systemName: "photo")!)
+                        //print(picList)
+                        downloadedNumber += 1
+                    }
+                    self.createPicsView()
+                }
+        }
         
     }
     func createPicsView(){
@@ -99,9 +126,9 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         let layout = UICollectionViewFlowLayout.init()
         layout.minimumLineSpacing = 2
         layout.minimumInteritemSpacing = 2
-        layout.itemSize = CGSize.init(width: 115, height:115)
+        layout.itemSize = CGSize.init(width: (screenWidth-40)/3, height:(screenWidth-40)/3)
         
-        let collectionView = UICollectionView.init(frame: CGRect.init(x: 12, y: 178, width: 350, height: 469), collectionViewLayout: layout)
+        let collectionView = UICollectionView.init(frame: CGRect.init(x: 15, y: 178, width: screenWidth-30, height: screenHeight-200), collectionViewLayout: layout)
         
         collectionView.showsVerticalScrollIndicator = false
         collectionView.showsHorizontalScrollIndicator = false
@@ -129,9 +156,6 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cellID", for: indexPath) as! UploadedPics
         if initial == false{
-            //let size = min(picSet[indexPath.row].cgImage!.width,picSet[indexPath.row].cgImage!.height)
-            //let cropZone = CGRect(x: 0, y: 0, width: size, height: size)
-            //cell.pic!.image = UIImage(cgImage: (picSet[indexPath.row].cgImage?.cropping(to:cropZone))!,scale: 4,orientation: UIImage.Orientation.up)
             cell.pic!.image = picSet[indexPath.row]
             //print("count="+String(indexPath.row))
         }
@@ -146,40 +170,44 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
         if segue.identifier == "showInfo", let c = segue.destination as? DisplayAPic {
             c.index = sender as? Int
         }
-       
+        
     }
     @IBAction func uploadPhoto(_ sender: UIButton) {
+        initial = false
         sender.isUserInteractionEnabled = false
         sender.tintColor = UIColor.systemGray
         self.selectCamera()
     }
     
-    
 
+    
     
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         
         // get the picture
         
         guard let pickedImage = info[UIImagePickerController.InfoKey.originalImage]
-                as? UIImage else{
-                    return
+            as? UIImage else{
+                return
         }
         picker.dismiss(animated: true){
+            
             self.uploadProgress.isHidden = false
             let timestamp = "\(Int(Date.timeIntervalSinceReferenceDate * 1000))"
             let path = [uid! + "/" + timestamp + ".jpg"]
             
             let storageRef = storage.reference(withPath: uid! + "/" + timestamp + ".jpg")
-            guard let picData = pickedImage.jpegData(compressionQuality: 0.6) else { return }
-            let size = min(UIImage(data: picData,scale:10)!.cgImage!.width,UIImage(data: picData,scale:10)!.cgImage!.height)
-            var newImage = [UIImage(cgImage: (UIImage(data: picData,scale:10)!.cgImage?.cropping(to:CGRect(x: 0, y: 0, width: size, height: size)))!,scale: 10,orientation: UIImage.Orientation.up)]
+            guard let picData = pickedImage.jpegData(compressionQuality: 0.7) else { return }
+            
+            
+            var newImage = [UIImage(data: picData)!.crop()]
+            //var newImage = [UIImage(cgImage: (UIImage(data: picData,scale:10)!.cgImage?.cropping(to:CGRect(x: 0, y: 0, width: size, height: size)))!,scale: 10,orientation: UIImage.Orientation.up)]
             let metadata = StorageMetadata()
             metadata.contentType = "image/jpeg"
             newImage.append(contentsOf: picSet)
             picSet = newImage
             picList = path + picList
-            initial = false
+            
             self.addPhoto(timestamp:timestamp)
             let uploadTask = storageRef.putData(picData, metadata: metadata) { (metadata, error) in
                 if let error = error {
@@ -200,11 +228,11 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
             self.view.viewWithTag(1)?.removeFromSuperview()
             
             self.createPicsView()
-        
+            
         }
         //picker.viewDidDisappear(animated: true)
         
-            
+        
         //}
         
     }
@@ -224,7 +252,7 @@ class profile: UIViewController, UICollectionViewDelegate, UICollectionViewDataS
             }
         }
     }
-
+    
     func selectCamera() {
         // auth
         let authStatus = AVCaptureDevice.authorizationStatus(for: .video)
