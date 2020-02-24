@@ -38,7 +38,7 @@ class signupViewController: UIViewController, UITextFieldDelegate,UIImagePickerC
                 
             } else {
                 uid = user?.uid
-
+                
             }
             
         }
@@ -66,7 +66,7 @@ class signupViewController: UIViewController, UITextFieldDelegate,UIImagePickerC
         
         self.view.endEditing(true)
         
-        return false;
+        return false
     }
     
     @objc func dismissKeyboard() { view.endEditing(true)}
@@ -142,11 +142,11 @@ class signupViewController: UIViewController, UITextFieldDelegate,UIImagePickerC
                     self!.alerts(msg:"Error uploading: \(error)")
                     return
                 }
-          
-            self!.performSegue(withIdentifier: "registeredIn", sender: self)
+                
+                self!.performSegue(withIdentifier: "registeredIn", sender: self)
                 
                 
-        }
+            }
             //self!.uploadSuccess(storageRef, storagePath: self!.uid! + "/displayPic.jpg")
             
         }
@@ -259,7 +259,7 @@ class signupViewController: UIViewController, UITextFieldDelegate,UIImagePickerC
             self.icon.draw(self.icon.bounds)
             self.icon.image = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
-            
+            iconPic = self.icon.image
             
             //self.dealwith(image: pickedImage)
         }
@@ -274,7 +274,8 @@ class signupViewController: UIViewController, UITextFieldDelegate,UIImagePickerC
         ref = db.collection("photos").addDocument(data: [
             "uid": uid!,
             "storageRef": uid! + "/displayPic.jpg",
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "icon": true
             ])
         { err in
             if let err = err {

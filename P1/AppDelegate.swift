@@ -11,11 +11,17 @@ import CoreData
 import Firebase
 import FirebaseFirestore
 var picList : [String] = []
-var count = 0
+var picListG : [String] = []
+//var countG = 0
+//var count = 0
 var initial = true
+var initialG = true
 var picSet : [UIImage] = []
+var picSetG : [UIImage] = []
 var uid: String? = nil
-var downloadedNumber = 0
+var uname : String? = nil
+//var downloadedNumber = 0
+//var downloadedNumberG = 0
 let db = Firestore.firestore()
 var ref: DocumentReference? = nil
 let storage = Storage.storage()
