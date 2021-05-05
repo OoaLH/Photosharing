@@ -1,8 +1,8 @@
 //
-//  GlobalViewController.swift
+//  profile.swift
 //  P1
 //
-//  Created by 张翌璠 on 2020-02-05.
+//  Created by 张翌璠 on 2020-01-12.
 //  Copyright © 2020 张翌璠. All rights reserved.
 //
 
@@ -11,19 +11,56 @@ import Firebase
 import FirebaseFirestoreSwift
 import Photos
 
-class GlobalViewController: UIViewController, UINavigationControllerDelegate {
+class ProfileViewController: UIViewController, UINavigationControllerDelegate {
+    
+    @IBOutlet var bioLabel: UILabel!
+    @IBOutlet var usernameLabel: UILabel!
+    @IBOutlet var iconImageView: UIImageView!
     
     var screenWidth: CGFloat = 0
     var screenHeight: CGFloat = 0
-    var refreshBlock: (() -> Void)?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        let storageRef = storage.reference()
         db.settings = FirestoreSettings()
         
         screenWidth = view.frame.width
         screenHeight = view.frame.height
+        
+        guard let uid = uid else {
+            dismiss(animated: true, completion: nil)
+            return
+        }
+        
+        let iconRef = storageRef.child(uid + "/displayPic.jpg")
+        // Download in memory with a maximum allowed size of 1MB (1 * 1024 * 1024 bytes)
+        if iconPic == nil {
+            iconRef.getData(maxSize: 1 * 1024 * 1024) { [unowned self] data, error in
+                if error != nil {
+                    // Uh-oh, an error occurred!
+                    return
+                } else {
+                    // Data for "images/island.jpg" is returned
+                    iconPic = UIImage(data: data!)
+                    iconImageView.image = iconPic
+                }
+            }
+        }
+        else {
+            iconImageView.image = iconPic
+        }
+        
+        var inputBio = ""
+        db.document("users/" + uid).getDocument { [unowned self] docSnapshot, error in
+            if let docSnapshot = docSnapshot, docSnapshot.exists {
+                inputBio = docSnapshot.data()?["Bio"] as? String ?? ""
+                username = docSnapshot.data()?["Username"] as? String ?? ""
+            }
+            bioLabel.text = inputBio
+            usernameLabel.text = username
+        }
         
         loadPics()
         
@@ -38,32 +75,37 @@ class GlobalViewController: UIViewController, UINavigationControllerDelegate {
     }
     
     func loadPics() {
+        guard let uid = uid else {
+            dismiss(animated: true, completion: nil)
+            return
+        }
+        
         db.collection("photos")
-            .whereField("icon", isEqualTo: false)
-            .order(by: "timestamp", descending: true)
-            .getDocuments { [unowned self] (querySnapshot, err) in
+            .whereField("uid", isEqualTo: uid)
+            .whereField("storageRef", isLessThan: uid + "/displayPic.jpg")
+            .order(by: "storageRef", descending: true)
+            .getDocuments { [unowned self] querySnapshot, err in
                 if let err = err {
                     print("Error getting documents: \(err)")
                 } else {
                     guard let querySnapshot = querySnapshot else { return }
                     
-                    picRefsGlobal.removeAll()
-                    picImagesGlobal.removeAll()
+                    picRefs.removeAll()
+                    picImages.removeAll()
                     
                     for document in querySnapshot.documents {
-                        picRefsGlobal.append(document.data()["storageRef"] as! String)
-                        picImagesGlobal.append(UIImage(systemName: "photo")!)
+                        picRefs.append(document.data()["storageRef"] as! String)
+                        picImages.append(UIImage(systemName: "photo")!)
                         
-                        let index = picRefsGlobal.count - 1
-                        let picRef = storage.reference().child(picRefsGlobal[index])
+                        let index = picRefs.count - 1
+                        let picRef = storage.reference().child(picRefs[index])
                         _ = picRef.getData(maxSize: 4 * 1024 * 1024) { [unowned self] data, error in
                             if error != nil {
                                 print("error occurred")
                                 return
                             }
                             if let data = data {
-                                print("123123")
-                                picImagesGlobal[index] = UIImage(data: data)!
+                                picImages[index] = UIImage(data: data)!
                                 picCollectionView.reloadItems(at: [IndexPath(row: index, section: 0)])
                             }
                         }
@@ -75,27 +117,30 @@ class GlobalViewController: UIViewController, UINavigationControllerDelegate {
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "captionG", let c = segue.destination as? CaptionViewController {
-            c.indexG = sender as? Int
-            c.index = nil
-        }
-        if segue.identifier == "showInfoG", let c = segue.destination as? PicDetailViewController {
-            c.indexG = sender as? Int
-            c.index = nil
+        if segue.identifier == "showInfo", let c = segue.destination as? PicDetailViewController {
+            c.index = sender as? Int
+            c.indexG = nil
             c.deleteAndRefreshBlock = {[unowned self] () -> Void in
                 loadPics()
-                refreshBlock?()
+            }
+        }
+        if segue.identifier == "caption", let c = segue.destination as? CaptionViewController {
+            c.index = sender as? Int
+            c.indexG = nil
+        }
+        if segue.identifier == "goGlobal", let c = segue.destination as? GlobalViewController {
+            c.refreshBlock = {[unowned self] () -> Void in
+                loadPics()
             }
         }
     }
     
-    @IBAction func uploadPic(_ sender: UIButton) {
+    @IBAction func uploadPhoto(_ sender: UIButton) {
         selectCamera()
     }
     
-    
-    @IBAction func back(_ sender: UIButton) {
-        dismiss(animated: true)
+    @IBAction func enterGlobalMode(_ sender: UIButton) {
+        performSegue(withIdentifier: "goGlobal", sender: nil)
     }
     
     @IBAction func logout(_ sender: UIButton) {
@@ -108,7 +153,6 @@ class GlobalViewController: UIViewController, UINavigationControllerDelegate {
         do {
             try firebaseAuth.signOut()
         } catch let signOutError as NSError {
-            
             print("Error signing out: %@", signOutError)
             return
         }
@@ -120,7 +164,6 @@ class GlobalViewController: UIViewController, UINavigationControllerDelegate {
             }
             //释放所有下级视图
             rootVC?.dismiss(animated: true, completion: nil)
-            //Just dismiss the action sheet
         })
         alert.addAction(okAction)
         present(alert, animated: true, completion: nil)
@@ -130,34 +173,34 @@ class GlobalViewController: UIViewController, UINavigationControllerDelegate {
         let layout = UICollectionViewFlowLayout.init()
         layout.minimumLineSpacing = 2
         layout.minimumInteritemSpacing = 2
-        layout.itemSize = CGSize.init(width: screenWidth - 30, height: screenWidth - 30)
-        let view = UICollectionView.init(frame: CGRect.init(x: 15, y: 130, width: screenWidth - 30, height: screenHeight - 130), collectionViewLayout: layout)
+        layout.itemSize = CGSize.init(width: (screenWidth - 40) / 3, height: (screenWidth - 40) / 3)
+        let view = UICollectionView.init(frame: CGRect.init(x: 15, y: 230, width: screenWidth - 30, height: screenHeight - 230), collectionViewLayout: layout)
         view.showsVerticalScrollIndicator = false
         view.dataSource = self
         view.delegate = self
         view.backgroundColor = UIColor.white
-        view.register(HomePicCell.self, forCellWithReuseIdentifier: "cellIDGlobal")
+        view.register(HomePicCell.self, forCellWithReuseIdentifier: "cellID")
         return view
     }()
 }
 
-extension GlobalViewController: UICollectionViewDelegate, UICollectionViewDataSource {
+extension ProfileViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return picRefsGlobal.count
+        return picRefs.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cellIDGlobal", for: indexPath) as! HomePicCell
-        cell.pic = picImagesGlobal[indexPath.row]
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cellID", for: indexPath) as! HomePicCell
+        cell.pic = picImages[indexPath.row]
         return cell
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        performSegue(withIdentifier: "showInfoG", sender: indexPath.row)
+        performSegue(withIdentifier: "showInfo", sender: indexPath.row)
     }
 }
 
-extension GlobalViewController: UIImagePickerControllerDelegate {
+extension ProfileViewController: UIImagePickerControllerDelegate {
     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
         // get the picture
         guard let pickedImage = info[UIImagePickerController.InfoKey.editedImage]
@@ -166,10 +209,10 @@ extension GlobalViewController: UIImagePickerControllerDelegate {
         }
         picker.dismiss(animated: true) {
             guard let picData = pickedImage.jpegData(compressionQuality: 0.7) else { return }
-            var newImage = [UIImage(data: picData)!]
-            newImage.append(contentsOf: picImagesGlobal)
-            picImagesGlobal = newImage
-            self.performSegue(withIdentifier: "captionG", sender: picImagesGlobal.count)
+            var newImages = [UIImage(data: picData)!]
+            newImages.append(contentsOf: picImages)
+            picImages = newImages
+            self.performSegue(withIdentifier: "caption", sender: picImages.count)
         }
     }
     
@@ -208,3 +251,4 @@ extension GlobalViewController: UIImagePickerControllerDelegate {
         }
     }
 }
+

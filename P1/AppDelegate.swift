@@ -10,22 +10,18 @@ import UIKit
 import CoreData
 import Firebase
 import FirebaseFirestore
-var picList : [String] = []
-var picListG : [String] = []
-//var countG = 0
-//var count = 0
-var initial = true
-var initialG = true
-var picSet : [UIImage] = []
-var picSetG : [UIImage] = []
+
+var picRefs: [String] = []
+var picRefsGlobal: [String] = []
+var picImages: [UIImage] = []
+var picImagesGlobal: [UIImage] = []
 var uid: String? = nil
-var uname : String? = nil
-//var downloadedNumber = 0
-//var downloadedNumberG = 0
+var username: String? = nil
 let db = Firestore.firestore()
-var ref: DocumentReference? = nil
+var ref: DocumentReference?
 let storage = Storage.storage()
-var iconPic : UIImage? = nil
+var iconPic: UIImage?
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     
